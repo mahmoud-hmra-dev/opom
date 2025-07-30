@@ -45,6 +45,10 @@ export const WorklenzColorCodes = [
   "#767676"
 ];
 
+export const REGION = process.env.AWS_REGION || "";
+export const BUCKET = process.env.BUCKET || "";
+export const S3_URL = process.env.S3_URL || "";
+
 export const AvatarNamesMap: { [x: string]: string } = {
   "A": "#154c9b",
   "B": "#3b7ad4",

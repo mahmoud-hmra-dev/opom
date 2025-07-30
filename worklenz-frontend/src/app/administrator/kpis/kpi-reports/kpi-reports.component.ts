@@ -168,6 +168,14 @@ export class KpiReportsComponent implements OnInit, OnDestroy {
         return parseFloat(completion) || 0;
     }
 
+    openKpiDetails(kpi: KpiReport): void {
+        console.log('Opening KPI details for:', kpi);
+    }
+
+    trackBy(_: number, item: KpiReport): string {
+        return item.id;
+    }
+
     private formatDate(date: Date): string {
         const year = date.getFullYear();
         const month = (date.getMonth() + 1).toString().padStart(2, '0');
