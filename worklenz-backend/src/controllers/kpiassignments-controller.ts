@@ -8,6 +8,7 @@ import HandleExceptions from "../decorators/handle-exceptions";
 import { v4 as uuidv4 } from "uuid";
 import { IKpiReportResponse } from "../interfaces/kpi-report.interface";
 import { logger } from "../utils/logger";
+import Excel from "exceljs";
 
 
 export default class KpiassignmentsController extends WorklenzControllerBase {
@@ -264,46 +265,85 @@ public static async getByTaskAndUser(req: IWorkLenzRequest, res: IWorkLenzRespon
   @HandleExceptions()
   public static async getReport(req: IWorkLenzRequest, res: IWorkLenzResponse): Promise<IWorkLenzResponse> {
     const {
-      start_date,
-      end_date,
-      user_id,
-      team_id,
-      project_id,
+      startDate,
+      endDate,
+      members,
+      projects,
+      kpis,
+      searchText,
       page = "1",
-      size = "10"
+      pageSize = "10"
     } = req.query;
 
     try {
       const pageNum = parseInt(page as string, 10) || 1;
-      const sizeNum = parseInt(size as string, 10) || 10;
+      const sizeNum = parseInt(pageSize as string, 10) || 10;
       const offset = (pageNum - 1) * sizeNum;
 
-      const queryText = `
-        SELECT ka.*, k.name as kpi_name, k.description as kpi_description, k.target_value, k.unit
+      const membersArray = (members as string)?.split(',').filter(Boolean) || [];
+      const projectsArray = (projects as string)?.split(',').filter(Boolean) || [];
+      const kpisArray = (kpis as string)?.split(',').filter(Boolean) || [];
+
+      const filterParams: any[] = [];
+      const where: string[] = [];
+
+      if (startDate) {
+        where.push(`ka.start_date >= $${filterParams.length + 1}::date`);
+        filterParams.push(startDate);
+      }
+      if (endDate) {
+        where.push(`ka.end_date <= $${filterParams.length + 1}::date`);
+        filterParams.push(endDate);
+      }
+      if (membersArray.length) {
+        where.push(`ka.team_member_id = ANY($${filterParams.length + 1}::uuid[])`);
+        filterParams.push(membersArray);
+      }
+      if (projectsArray.length) {
+        where.push(`ka.project_id = ANY($${filterParams.length + 1}::uuid[])`);
+        filterParams.push(projectsArray);
+      }
+      if (kpisArray.length) {
+        where.push(`ka.kpi_id = ANY($${filterParams.length + 1}::uuid[])`);
+        filterParams.push(kpisArray);
+      }
+      if (searchText) {
+        where.push(`(k.name ILIKE '%' || $${filterParams.length + 1} || '%' OR k.description ILIKE '%' || $${filterParams.length + 1} || '%' OR t.name ILIKE '%' || $${filterParams.length + 1} || '%')`);
+        filterParams.push(searchText);
+      }
+
+      const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+      const dataQuery = `
+        SELECT ka.*, k.name as kpi_name, k.description as kpi_description, k.target_value, k.unit,
+               u.name as member_name, u.avatar_url as member_avatar,
+               t.name as task_name, p.name as project_name
         FROM kpi_assignments ka
         JOIN kpis k ON ka.kpi_id = k.id
-        WHERE ($1::date IS NULL OR ka.start_date >= $1::date)
-          AND ($2::date IS NULL OR ka.end_date <= $2::date)
-          AND ($3::uuid IS NULL OR ka.team_member_id = $3::uuid)
-          AND ($4::uuid IS NULL OR ka.project_id = $4::uuid)
+        LEFT JOIN team_members tm ON ka.team_member_id = tm.id
+        LEFT JOIN users u ON tm.user_id = u.id
+        LEFT JOIN tasks t ON ka.task_id = t.id
+        LEFT JOIN projects p ON ka.project_id = p.id
+        ${whereClause}
         ORDER BY ka.created_at DESC
-        LIMIT $5 OFFSET $6;
+        LIMIT $${filterParams.length + 1} OFFSET $${filterParams.length + 2};
       `;
 
       const countQuery = `
         SELECT COUNT(*)
         FROM kpi_assignments ka
-        WHERE ($1::date IS NULL OR ka.start_date >= $1::date)
-          AND ($2::date IS NULL OR ka.end_date <= $2::date)
-          AND ($3::uuid IS NULL OR ka.team_member_id = $3::uuid)
-          AND ($4::uuid IS NULL OR ka.project_id = $4::uuid);
+        JOIN kpis k ON ka.kpi_id = k.id
+        LEFT JOIN team_members tm ON ka.team_member_id = tm.id
+        LEFT JOIN tasks t ON ka.task_id = t.id
+        LEFT JOIN projects p ON ka.project_id = p.id
+        ${whereClause};
       `;
 
-      const result = await db.query(queryText, [start_date, end_date, user_id, team_id, sizeNum, offset]);
-      const countResult = await db.query(countQuery, [start_date, end_date, user_id, team_id]);
+      const dataResult = await db.query(dataQuery, [...filterParams, sizeNum, offset]);
+      const countResult = await db.query(countQuery, filterParams);
 
       const response = {
-        data: result.rows,
+        data: dataResult.rows,
         total: parseInt(countResult.rows[0].count, 10)
       };
 
@@ -315,36 +355,106 @@ public static async getByTaskAndUser(req: IWorkLenzRequest, res: IWorkLenzRespon
   }
 
 @HandleExceptions()
-public static async exportReport(req: IWorkLenzRequest, res: IWorkLenzResponse): Promise<IWorkLenzResponse | undefined> {
-  const { start_date, end_date, team_id, project_id, kpi_id } = req.query;
+  public static async exportReport(req: IWorkLenzRequest, res: IWorkLenzResponse): Promise<IWorkLenzResponse | undefined> {
+    const {
+      startDate,
+      endDate,
+      members,
+      projects,
+      kpis,
+      searchText
+    } = req.query;
 
-  try {
-    const queryText = `
-      SELECT ka.*, k.name as kpi_name, k.description as kpi_description, k.target_value, k.unit
-      FROM kpi_assignments ka
-      JOIN kpis k ON ka.kpi_id = k.id
-      WHERE ($1::date IS NULL OR ka.start_date >= $1::date)
-        AND ($2::date IS NULL OR ka.end_date <= $2::date)
-        AND ($3::uuid IS NULL OR ka.team_member_id = $3::uuid)
-        AND ($4::uuid IS NULL OR ka.project_id = $4::uuid)
-        AND ($5::uuid IS NULL OR ka.kpi_id = $5::uuid)
-      ORDER BY ka.created_at DESC;
-    `;
+    try {
+      const membersArray = (members as string)?.split(',').filter(Boolean) || [];
+      const projectsArray = (projects as string)?.split(',').filter(Boolean) || [];
+      const kpisArray = (kpis as string)?.split(',').filter(Boolean) || [];
 
-    const result = await db.query(queryText, [start_date, end_date, team_id, project_id, kpi_id]);
+      const filterParams: any[] = [];
+      const where: string[] = [];
 
-    // Convert result to CSV or desired format
-    const csvData = result.rows.map(row => Object.values(row).join(",")).join("\n");
+      if (startDate) {
+        where.push(`ka.start_date >= $${filterParams.length + 1}::date`);
+        filterParams.push(startDate);
+      }
+      if (endDate) {
+        where.push(`ka.end_date <= $${filterParams.length + 1}::date`);
+        filterParams.push(endDate);
+      }
+      if (membersArray.length) {
+        where.push(`ka.team_member_id = ANY($${filterParams.length + 1}::uuid[])`);
+        filterParams.push(membersArray);
+      }
+      if (projectsArray.length) {
+        where.push(`ka.project_id = ANY($${filterParams.length + 1}::uuid[])`);
+        filterParams.push(projectsArray);
+      }
+      if (kpisArray.length) {
+        where.push(`ka.kpi_id = ANY($${filterParams.length + 1}::uuid[])`);
+        filterParams.push(kpisArray);
+      }
+      if (searchText) {
+        where.push(`(k.name ILIKE '%' || $${filterParams.length + 1} || '%' OR k.description ILIKE '%' || $${filterParams.length + 1} || '%' OR t.name ILIKE '%' || $${filterParams.length + 1} || '%')`);
+        filterParams.push(searchText);
+      }
 
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", "attachment; filename=report.csv");
-    res.status(200).send(csvData);
-    return;
-  } catch (err: unknown) {
-    logger.error("Error exporting KPI report:", (err as Error).stack);
-    return res.status(500).json(new ServerResponse(false, "Error exporting report"));
+      const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+      const queryText = `
+        SELECT ka.*, k.name as kpi_name, k.description as kpi_description, k.target_value, k.unit,
+               u.name as member_name, u.avatar_url as member_avatar,
+               t.name as task_name, p.name as project_name
+        FROM kpi_assignments ka
+        JOIN kpis k ON ka.kpi_id = k.id
+        LEFT JOIN team_members tm ON ka.team_member_id = tm.id
+        LEFT JOIN users u ON tm.user_id = u.id
+        LEFT JOIN tasks t ON ka.task_id = t.id
+        LEFT JOIN projects p ON ka.project_id = p.id
+        ${whereClause}
+        ORDER BY ka.created_at DESC;
+      `;
+
+      const result = await db.query(queryText, filterParams);
+
+      const workbook = new Excel.Workbook();
+      const sheet = workbook.addWorksheet('KPI Report');
+
+      sheet.columns = [
+        { header: 'KPI Name', key: 'kpi_name', width: 20 },
+        { header: 'KPI Description', key: 'kpi_description', width: 30 },
+        { header: 'Task Name', key: 'task_name', width: 25 },
+        { header: 'Team Member', key: 'member_name', width: 25 },
+        { header: 'Project', key: 'project_name', width: 25 },
+        { header: 'Target Value', key: 'target_value', width: 15 },
+        { header: 'Current Value', key: 'current_value', width: 15 },
+        { header: 'Completion %', key: 'completion_percentage', width: 15 },
+        { header: 'Status', key: 'status', width: 15 },
+      ];
+
+      result.rows.forEach(row => {
+        sheet.addRow({
+          kpi_name: row.kpi_name,
+          kpi_description: row.kpi_description,
+          task_name: row.task_name,
+          member_name: row.member_name,
+          project_name: row.project_name,
+          target_value: row.target_value,
+          current_value: row.current_value,
+          completion_percentage: row.completion_percentage,
+          status: row.status,
+        });
+      });
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats');
+      res.setHeader('Content-Disposition', `attachment; filename=KPI_Report_${new Date().toISOString()}.xlsx`);
+
+      await workbook.xlsx.write(res).then(() => res.end());
+      return;
+    } catch (err: unknown) {
+      logger.error('Error exporting KPI report:', (err as Error).stack);
+      return res.status(500).json(new ServerResponse(false, 'Error exporting report'));
+    }
   }
-}
 
 
   @HandleExceptions()

@@ -12,7 +12,7 @@
     <ng-template #kpiActions>
       <nz-range-picker
         [(ngModel)]="dateRange"
-        (ngModelChange)="loadInitialKpis()"
+        (ngModelChange)="onFiltersChange()"
         nzFormat="yyyy-MM-dd"
         nzPlaceHolder="Select Date Range"
       >
@@ -21,7 +21,7 @@
       <nz-select
         class="w-25"
         [(ngModel)]="selectedMembers"
-        (ngModelChange)="loadInitialKpis()"
+        (ngModelChange)="onFiltersChange()"
         nzMode="multiple"
         nzAllowClear
         nzPlaceHolder="Select Members"
@@ -32,7 +32,7 @@
       <nz-select
         class="w-25"
         [(ngModel)]="selectedProjects"
-        (ngModelChange)="loadInitialKpis()"
+        (ngModelChange)="onFiltersChange()"
         nzMode="multiple"
         nzAllowClear
         nzPlaceHolder="Select Projects"
@@ -43,7 +43,7 @@
       <nz-select
         class="w-25"
         [(ngModel)]="selectedKpis"
-        (ngModelChange)="loadInitialKpis()"
+        (ngModelChange)="onFiltersChange()"
         nzMode="multiple"
         nzAllowClear
         nzPlaceHolder="Select KPIs"
@@ -57,7 +57,7 @@
           nz-input
           placeholder="Search by KPI name or description"
           [(ngModel)]="searchText"
-          (ngModelChange)="searchKpis()"
+          (ngModelChange)="onSearch()"
         />
       </nz-input-group>
     </ng-template>
@@ -68,11 +68,11 @@
     <nz-table
       #table
       nzSize="small"
-      [nzData]="allKpis"
+      [nzData]="kpis"
       [nzFrontPagination]="false"
       [nzLoading]="loading"
       [(nzPageIndex)]="pageIndex"
-      [nzPageSizeOptions]="paginationSizes"
+      [nzPageSizeOptions]="pageSizes"
       [(nzPageSize)]="pageSize"
       [nzTotal]="total"
       [nzShowSizeChanger]="true"
