@@ -1,0 +1,54 @@
+<div class="container">
+  <nz-card>
+    <form nz-form [formGroup]="kpiForm" (ngSubmit)="submitForm()">
+      <nz-table #basicTable [nzData]="kpiControls" [nzBordered]="true">
+        <thead>
+          <tr>
+            <th>KPI Name</th>
+            <th>Objective</th>
+            <th>Calculation Method</th>
+            <th>Frequency</th>
+            <th>Target Value</th>
+            <th>Target Value Type</th>
+            <th>Responsible / Accountable</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let kpi of kpiControls; let i = index" [formGroup]="kpi">
+            <td><input nz-input formControlName="name" placeholder="Enter KPI name" /></td>
+            <td><textarea nz-input formControlName="description" placeholder="Enter KPI Objective"></textarea></td>
+            <td><input nz-input formControlName="calculation_method" placeholder="Calculation Method" /></td>
+            <td>
+              <nz-select formControlName="frequency" nzPlaceHolder="Select Frequency">
+                <nz-option *ngFor="let option of frequencyOptions" [nzValue]="option.value" [nzLabel]="option.label"></nz-option>
+              </nz-select>
+            </td>
+            <td><input nz-input type="number" formControlName="target_value" placeholder="Target Value" /></td>
+            <td>
+              <nz-select formControlName="unit" nzPlaceHolder="Select Target Value Type">
+                <nz-option *ngFor="let option of unitOptions" [nzValue]="option.value" [nzLabel]="option.label"></nz-option>
+              </nz-select>
+            </td>
+            <td>
+              <worklenz-app-kpi-assign (assignChanged)="onAssignChanged(i, $event)"></worklenz-app-kpi-assign>
+            </td>
+            <td>
+              <button nz-button nzType="default" nzShape="circle" nzDanger (click)="removeKpi(i)">
+                <i nz-icon nzType="delete"></i>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </nz-table>
+
+      <nz-form-item>
+        <nz-form-control [nzSpan]="24" class="text-right">
+          <button nz-button nzType="primary" [disabled]="loading">Create KPI</button>
+        </nz-form-control>
+      </nz-form-item>
+
+      <button nz-button nzType="default" (click)="addKpi()" [disabled]="loading">Add KPI</button>
+    </form>
+  </nz-card>
+</div>

@@ -1,0 +1,3 @@
+<nz-select [disabled]="disabled" [(ngModel)]="selectedKpi" (ngModelChange)="onKpiChange($event)" nzPlaceHolder="Select KPI">
+  <nz-option *ngFor="let kpi of kpis" [nzValue]="kpi.id" nzLabel="{{kpi.name}}"></nz-option>
+</nz-select>

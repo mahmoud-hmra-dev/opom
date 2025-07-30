@@ -1,0 +1,9 @@
+<div class="dropdowns-container">
+  <nz-select [disabled]="disabled" [(ngModel)]="selectedResponsible" (ngModelChange)="onResponsibleChange($event)" nzPlaceHolder="Select Responsible">
+    <nz-option *ngFor="let member of members" [nzValue]="member.id" nzLabel="{{member.name}}"></nz-option>
+  </nz-select>
+
+  <nz-select [disabled]="disabled" [(ngModel)]="selectedAccountable" (ngModelChange)="onAccountableChange($event)" nzPlaceHolder="Select Accountable">
+    <nz-option *ngFor="let member of members" [nzValue]="member.id" nzLabel="{{member.name}}"></nz-option>
+  </nz-select>
+</div>

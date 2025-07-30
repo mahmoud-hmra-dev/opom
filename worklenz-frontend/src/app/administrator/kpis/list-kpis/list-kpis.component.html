@@ -1,0 +1,42 @@
+<div class="container">
+  <nz-card>
+    <nz-button-group>
+      <button  nz-button [routerLink]="'create'"
+              [nzType]="'primary'"><span nz-icon nzType="edit" nzTheme="outline" ></span>Create KPI</button>
+               <br>
+               <button  nz-button [routerLink]="'KpiReports'"
+              [nzType]="'primary'"><span nz-icon nzType="edit" nzTheme="outline" ></span>Kpis Reports</button>
+
+    </nz-button-group>
+    <nz-table #basicTable [nzBordered]="true" [nzData]="kpis" [nzLoading]="loading" [nzSize]="'middle'">
+      <thead>
+        <tr>
+          <th nzWidth="15%">KPI Name</th>
+          <th nzWidth="20%">Objective</th>
+          <th nzWidth="10%">Frequency</th>
+          <th nzWidth="10%">Target Value</th>
+          <th nzWidth="10%">Target Value Type</th>
+          <th nzWidth="15%">Responsible / Accountable</th>
+          <!-- <th nzWidth="15%" class="text-center">Actions</th> -->
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let kpi of kpis">
+          <td>{{ kpi.name }}</td>
+          <td>{{ kpi.description || '-' }}</td>
+          <td>{{ kpi.frequency }}</td>
+          <td>{{ kpi.target_value }}</td>
+          <td>{{ kpi.unit }}</td>
+          <td>
+             <worklenz-app-kpi-assign [disabled]="true" [selectedResponsible]="kpi.responsible_id" [selectedAccountable]="kpi.accountable_id"></worklenz-app-kpi-assign>
+          </td>
+          <!-- <td class="text-center">
+            <button nz-button nzType="link" nzSize="small" (click)="deleteKpi(kpi.id)">
+              <span nz-icon nzType="delete"></span>
+            </button>
+          </td> -->
+        </tr>
+      </tbody>
+    </nz-table>
+  </nz-card>
+</div>

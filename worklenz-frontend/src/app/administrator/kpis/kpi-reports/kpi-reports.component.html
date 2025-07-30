@@ -1,0 +1,128 @@
+<worklenz-rpt-header
+  [title]="'KPI Performance'"
+  [showDuration]="true"
+  [showArchivedToggle]="false"
+  (isDurationLabelSelected)="isDurationLabelSelected = $event"
+  (exportFile)="exportToExcel()"
+>
+</worklenz-rpt-header>
+
+<nz-content>
+  <nz-card [nzLoading]="loading" [nzTitle]="''" [nzExtra]="kpiActions">
+    <ng-template #kpiActions>
+      <nz-range-picker
+        [(ngModel)]="dateRange"
+        (ngModelChange)="loadInitialKpis()"
+        nzFormat="yyyy-MM-dd"
+        nzPlaceHolder="Select Date Range"
+      >
+      </nz-range-picker>
+
+      <nz-select
+        class="w-25"
+        [(ngModel)]="selectedMembers"
+        (ngModelChange)="loadInitialKpis()"
+        nzMode="multiple"
+        nzAllowClear
+        nzPlaceHolder="Select Members"
+      >
+        <nz-option *ngFor="let member of members" [nzValue]="member.id" [nzLabel]="member.name"></nz-option>
+      </nz-select>
+
+      <nz-select
+        class="w-25"
+        [(ngModel)]="selectedProjects"
+        (ngModelChange)="loadInitialKpis()"
+        nzMode="multiple"
+        nzAllowClear
+        nzPlaceHolder="Select Projects"
+      >
+        <nz-option *ngFor="let project of projects" [nzValue]="project.id" [nzLabel]="project.name"></nz-option>
+      </nz-select>
+
+      <nz-select
+        class="w-25"
+        [(ngModel)]="selectedKpis"
+        (ngModelChange)="loadInitialKpis()"
+        nzMode="multiple"
+        nzAllowClear
+        nzPlaceHolder="Select KPIs"
+      >
+        <nz-option *ngFor="let kpi of kpiNames" [nzValue]="kpi.id" [nzLabel]="kpi.name"></nz-option>
+      </nz-select>
+
+      <nz-input-group style="width: 250px;" [nzSuffix]="suffixIconSearch">
+        <input
+          type="text"
+          nz-input
+          placeholder="Search by KPI name or description"
+          [(ngModel)]="searchText"
+          (ngModelChange)="searchKpis()"
+        />
+      </nz-input-group>
+    </ng-template>
+    <ng-template #suffixIconSearch>
+      <span nz-icon nzType="search"></span>
+    </ng-template>
+
+    <nz-table
+      #table
+      nzSize="small"
+      [nzData]="allKpis"
+      [nzFrontPagination]="false"
+      [nzLoading]="loading"
+      [(nzPageIndex)]="pageIndex"
+      [nzPageSizeOptions]="paginationSizes"
+      [(nzPageSize)]="pageSize"
+      [nzTotal]="total"
+      [nzShowSizeChanger]="true"
+      [nzHideOnSinglePage]="true"
+      [nzScroll]="{ x: '300px' }"
+      (nzQueryParams)="onQueryParamsChange($event)"
+    >
+      <thead>
+        <tr>
+          <th nzWidth="250px">KPI Name</th>
+          <th nzWidth="250px">KPI Description</th>
+          <th nzWidth="250px">Task Name</th>
+          <th nzWidth="200px">Team Member</th>
+          <th nzWidth="200px">Project</th>
+          <th class="text-center" nzWidth="120px">Target Value</th>
+          <th class="text-center" nzWidth="120px">Current Value</th>
+          <th nzWidth="220px">Completion</th>
+          <th class="text-center" nzWidth="120px">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let data of table.data; trackBy: trackBy" class="cursor-pointer" (click)="openKpiDetails(data)">
+          <td>{{ data.kpi_name }}</td>
+          <td>{{ data.kpi_description }}</td>
+          <td>{{ data.task_name }}</td>
+          <td>
+            <nz-space class="align-items-center">
+              <nz-avatar *nzSpaceItem [nzSrc]="data.member_avatar || ''"
+                [nzText]="(data.member_name | firstCharUpper) || ''"
+                [style.background-color]="'#1890ff'">
+              </nz-avatar>
+              <span *nzSpaceItem>{{ data.member_name }}</span>
+            </nz-space>
+          </td>
+          <td>{{ data.project_name || 'N/A' }}</td>
+          <td class="text-center">{{ data.target_value }} {{ data.unit }}</td>
+          <td class="text-center">{{ data.current_value }}</td>
+          <td>
+            <nz-progress
+              [nzPercent]="getCompletionPercentage(data.completion_percentage)"
+              nzStatus="success"
+              [nzShowInfo]="true"
+            >
+            </nz-progress>
+          </td>
+          <td class="text-center">
+            <nz-tag [nzColor]="getStatusColor(data.status)">{{ data.status }}</nz-tag>
+          </td>
+        </tr>
+      </tbody>
+    </nz-table>
+  </nz-card>
+</nz-content>
